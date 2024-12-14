@@ -74,19 +74,9 @@ plt.xticks(rotation=90)
 # Sort the frequencies dictionary by key as integers
 sorted_frequencies = dict(sorted(all_frequencies.items(), key=lambda item: int(item[0])))
 
-# Measure deviations from y = x line
-total_sum = sum(sorted_frequencies.values())
-
-deviations = {}
-for key, value in sorted_frequencies.items():
-    key_int = int(key) / 1275 * total_sum
-    deviations[key] =  value - key_int
-
 # Extract keys and values for plotting
-keys = list(deviations.keys())
-values = list(deviations.values())
-
-print(deviations)
+keys = list(sorted_frequencies.keys())
+values = list(sorted_frequencies.values())
 
 # Create a bar plot
 plt.figure(figsize=(10, 5))
