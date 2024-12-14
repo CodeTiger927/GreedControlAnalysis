@@ -6,13 +6,15 @@ support = list(range(1, 51))
 
 def evaluate(support, prev_dist, next_dist, alpha):
     score = 0
-    for j, prev, next in zip(support, prev_dist, next_dist):
-        if not np.isclose(next, 0):
-            score += next * j / (alpha * next + (1 - alpha) * prev)
+    next_nonzero = next_dist[np.isclose(next_dist, 0) == False]
+    prev_nonzero = prev_dist[np.isclose(next_dist, 0) == False]
+    support_nonzero = np.array(support)[np.isclose(next_dist, 0) == False]
+    
+    score = np.sum(next_nonzero * support_nonzero / (alpha * next_nonzero + (1 - alpha) * prev_nonzero))
     return score
 
 prev_dist = np.random.dirichlet(np.ones(len(support)), size=1)[0]
-alpha = 0.4
+alpha = 0.667
 print(prev_dist, alpha)
 
 def find_next_dist(support, prev_dist, alpha):
