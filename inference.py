@@ -58,6 +58,12 @@ aggregate_distribution = aggregate_data / np.sum(aggregate_data)
 data = [dist / sum(dist) for dist in data]
 optimal = np.array(list(i + 1 for i in range(len(aggregate_distribution)))) / sum(i + 1 for i in range(len(aggregate_distribution)))
 
+human_data = [102,77,83,89,87,69,150,84,111,51,87,71,65,59,67,74,64,70,53,79,50,91,58,56,87,52,62,50,53,57,63,61,77,47,58,85,69,45,52,59,55,60,65,86,70,61,50,64,81,116]
+human_data = np.array(human_data, dtype=np.float64)
+human_data = support * human_data
+human_distribution = human_data / sum(human_data)
+
+
 print(support, aggregate_distribution, optimal)
 
 print("GARBAGE:", sum(log_prob(obs, np.array([1/len(support) for _ in obs])) for obs in data[1:]))
@@ -142,7 +148,7 @@ def initial_distribution_previous_day_plus_const(dist, gamma):
     def initial_distribution_prev_day_plus_const(data, i):
         if i == 0:
             assert False
-        return (1 - gamma) * data[i-1] + gamma * dist
+        return gamma * data[i-1] + (1 - gamma) * dist
     return initial_distribution_prev_day_plus_const
 
 def initial_distribution_exp_wavg(alpha=0.9):
@@ -158,42 +164,29 @@ def initial_distribution_exp_wavg(alpha=0.9):
 def alpha_constant(alpha):
     return lambda data, i: alpha
 
-def evaluate_params(params):
-    dist = params[:-2]
-    alpha, gamma = params[-2:]
-    print(alpha, gamma, dist)
-    return -calculate_log_prob(data, initial_distribution_previous_day_plus_const(dist, gamma), alpha_constant(alpha), alpha_constant(0.0), 10, show_pbar=False)
-
-'''alphas = np.linspace(0.1, 0.8, 15)
-betas = np.linspace(0, 0.3, 6)
-
-results = [[None for _ in betas] for _ in alphas]
-
-for i, alpha in enumerate(alphas):
-    for j, beta in enumerate(betas):
-        results[i][j] = -evaluate_params([alpha, beta])
-        print(f"Alpha: {alpha}, Beta: {beta}, Log Prob: {results[i][j]}")
-
 import matplotlib.pyplot as plt
-
-plt.imshow(results, cmap='hot', interpolation='nearest')
-plt.colorbar()
-plt.xticks(range(len(betas)), betas)
-plt.yticks(range(len(alphas)), alphas)
-plt.xlabel('Beta')
-plt.ylabel('Alpha')
+plt.plot(support, human_distribution, label='Human Distribution', marker='o')
 plt.show()
-'''
 
-from scipy.optimize import minimize
-from scipy.optimize import LinearConstraint
+def evaluate_params(params):
+    # dist = params[:-1]
+    alpha = params[-1]
+    print(alpha)
+    return -calculate_log_prob(data, initial_distribution_previous_day_plus_const(human_distribution, alpha), alpha_constant(alpha), alpha_constant(0.0), 50, show_pbar=False)
 
-initial_guess = list(optimal) + [0.5, 0.5]
+alphas = np.linspace(0.0, 1.0, 21)
+log_probs = []
+for alpha in alphas:
+    res = calculate_log_prob(data, initial_distribution_previous_day_plus_const(human_distribution, alpha), alpha_constant(alpha), alpha_constant(0.0), 50, show_pbar=False)
+    log_probs.append(res)
 
-linear_constraint = LinearConstraint([1] * len(optimal) + [0, 0], 1, 1)
+plt.plot(alphas, log_probs, label='leveling model')
+plt.xlabel('Alpha')
+plt.ylabel('Log Probability')
+plt.title('Log Probability vs. Alpha')
 
-bounds = [(1e-6, 1-(1e-6))] * (len(optimal) + 2)
+optimal_value = sum(log_prob(obs, optimal) for obs in data[1:])
+plt.axhline(y=optimal_value, color='r', linestyle='--', label='fit of optimal strategy')
+plt.legend()
+plt.show()
 
-result = minimize(evaluate_params, initial_guess, bounds=bounds, constraints=[linear_constraint])
-
-print(result)
