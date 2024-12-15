@@ -1,3 +1,64 @@
+import numpy as np
+
+def get_frequencies(json):
+    # Extract the data from the JSON
+    data = json["response"]["data"]
+    
+    # Initialize a dictionary to store the frequencies
+    frequencies = {}
+    
+    # Iterate through the data and count the frequencies
+    for item in data:
+        if isinstance(item[0], str):
+            key = item[0]
+        else:
+            key = str(item[0])
+        value = int(item[1])
+        
+        if key in frequencies:
+            frequencies[key] += value
+        else:
+            frequencies[key] = value
+    
+    return frequencies
+
+def iterate_over_days():
+    import os
+    import json
+
+    all_frequencies = []
+    
+    # Iterate over all files in the /data directory
+    for filename in os.listdir('data/'):
+        if filename.endswith('.json'):
+            filepath = os.path.join('data/', filename)
+            
+            # Open and load the JSON file
+            with open(filepath, 'r') as file:
+                json_data = json.load(file)
+                
+                # Get frequencies from the JSON data
+                frequencies = get_frequencies(json_data)
+
+                # Append the frequencies to the all_frequencies list
+                all_frequencies.append(frequencies)
+
+    return all_frequencies
+
+def log_prob(observed_distribution, expected_distribution):
+    return np.sum(observed_distribution * np.log(1e-18 + expected_distribution))
+
+# Call the function to iterate over days and get the frequencies
+all_frequencies = iterate_over_days()
+support = list(map(int,all_frequencies[0].keys()))
+support = np.array(support, dtype=np.float64)
+data = [np.array(list(freq.values()), dtype=np.float64) for freq in all_frequencies]
+aggregate_data = np.sum(data[1:], axis=0)
+aggregate_distribution = aggregate_data / np.sum(aggregate_data)
+data = [dist / sum(dist) for dist in data]
+optimal = np.array(list(i + 1 for i in range(len(aggregate_distribution)))) / sum(i + 1 for i in range(len(aggregate_distribution)))
+
+
 from scipy.optimize import minimize
 from scipy.optimize import LinearConstraint
 import numpy as np
@@ -13,9 +74,14 @@ def evaluate(support, prev_dist, next_dist, alpha):
     score = np.sum(next_nonzero * support_nonzero / (alpha * next_nonzero + (1 - alpha) * prev_nonzero))
     return score
 
-prev_dist = [0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.0, 0.02976190476190476, 0.011904761904761904, 0.017857142857142856, 0.023809523809523808, 0.023809523809523808, 0.011904761904761904, 0.005952380952380952, 0.03571428571428571, 0.017857142857142856, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.023809523809523808, 0.05357142857142857, 0.023809523809523808, 0.03571428571428571, 0.02976190476190476, 0.03571428571428571, 0.047619047619047616, 0.05357142857142857, 0.03571428571428571, 0.02976190476190476, 0.023809523809523808, 0.017857142857142856, 0.03571428571428571, 0.017857142857142856, 0.02976190476190476, 0.047619047619047616, 0.047619047619047616, 0.03571428571428571, 0.017857142857142856, 0.02976190476190476]
-prev_dist = np.array(prev_dist)
-alpha = 0.6
+human_data_raw = [102,77,83,89,87,69,150,84,111,51,87,71,65,59,67,74,64,70,53,79,50,91,58,56,87,52,62,50,53,57,63,61,77,47,58,85,69,45,52,59,55,60,65,86,70,61,50,64,81,116]
+human_data_scaled = np.array(human_data_raw, dtype=np.float64) * support
+human_distribution = human_data_scaled / sum(human_data_scaled)
+
+prev_dist = human_distribution
+# prev_dist = [0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.0, 0.011904761904761904, 0.0, 0.0, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.0, 0.02976190476190476, 0.011904761904761904, 0.017857142857142856, 0.023809523809523808, 0.023809523809523808, 0.011904761904761904, 0.005952380952380952, 0.03571428571428571, 0.017857142857142856, 0.011904761904761904, 0.017857142857142856, 0.011904761904761904, 0.023809523809523808, 0.05357142857142857, 0.023809523809523808, 0.03571428571428571, 0.02976190476190476, 0.03571428571428571, 0.047619047619047616, 0.05357142857142857, 0.03571428571428571, 0.02976190476190476, 0.023809523809523808, 0.017857142857142856, 0.03571428571428571, 0.017857142857142856, 0.02976190476190476, 0.047619047619047616, 0.047619047619047616, 0.03571428571428571, 0.017857142857142856, 0.02976190476190476]
+# prev_dist = np.array(prev_dist)
+alpha = 0.3
 print(prev_dist, alpha)
 
 '''def find_next_dist(support, prev_dist, alpha):
@@ -40,21 +106,23 @@ def find_next_dist(support, prev_dist, alpha):
 
     return next_dist
 
-def combine_dist(support, prev_dist, next_dist, alpha):
-    return [alpha * next + (1 - alpha) * prev for prev, next in zip(prev_dist, next_dist)]
+def log_prob(observed_distribution, expected_distribution):
+    return np.sum(observed_distribution * np.log(1e-18 + expected_distribution)) - np.sum(observed_distribution * np.log(1e-18 + observed_distribution / sum(observed_distribution)))
 
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 plt.plot(support, prev_dist, label=f'Iteration 0', marker='o')
 plt.xlabel('Support')
 plt.ylabel('Distribution')
-plt.legend()
-for it in tqdm(range(1,10)):
+for it in tqdm(range(1,4)):
     next_dist = find_next_dist(support, prev_dist, alpha)
     prev_dist = next_dist
     
     plt.plot(support, prev_dist, label=f'Iteration {it}', marker='o')
     plt.xlabel('Support')
     plt.ylabel('Distribution')
-    plt.legend()
+
+plt.plot(support, aggregate_distribution, label='Aggregate Distribution', marker='o')
+
+plt.legend()
 plt.show()
